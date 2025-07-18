@@ -1,4 +1,4 @@
-# WooCommerce Boleto e PIX PagHiper
+# PagHiper Boleto e PIX para WooCommerce
 
 Ofereça a seus clientes pagamento boleto bancário com a PagHiper. Fácil, prático e rapido!
 Emita boletos bancários de maneira descomplicada. A PagHiper cuida de toda a emissão, compensação e registro do boleto.
@@ -6,11 +6,11 @@ O plug-in anexa o boleto, mostra código de barras e linha digitável nos e-mail
 
 Fácil, prático e rápido!
 
-* **Versão mais Recente:** 2.4.3
+* **Versão mais Recente:** 2.5
 * **Requer WooCommerce** versão mínima 4.0.0
 * **Requer Wordpress** preferencialmente atualizado
 * **Requisitos:** PHP >= 7.2, cURL ativado.
-* **Compatibilidade:** Wordpress 6.8.1, Woocommerce 9.8.5, PHP 8.3.0.
+* **Compatibilidade:** Wordpress 6.8.1, Woocommerce 10.0.2, PHP 8.4.10.
 
 
 # Como Instalar
@@ -43,6 +43,12 @@ Para dúvidas comerciais e/ou sobre o funcionamento do serviço, visite a nossa 
 
 * Envio de e-mails de lembrete automatizados pelo Woocommerce, com comunicação da loja para maior conversão
 * Implementação de funcionalidade de boleto parcelado
+
+## 2.5
+
+- Mudança sutil no nome do plugin por questões de compliance
+- Erro fatal no admin dos pedidos, a depender de algumas condições
+- Múltiplos bugfixes e melhorias
 
 ## 2.4.3
 
@@ -221,7 +227,7 @@ Para dúvidas comerciais e/ou sobre o funcionamento do serviço, visite a nossa 
 
 # Licença
 
-Copyright 2016 Serviços Online BR.
+Copyright 2016-2025 Serviços Online BR.
 
 Licensed under the 3-Clause BSD License (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at
 

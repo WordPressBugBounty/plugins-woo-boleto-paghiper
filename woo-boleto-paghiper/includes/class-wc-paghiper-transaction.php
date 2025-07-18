@@ -1,4 +1,13 @@
 <?php
+/**
+ * WC_PagHiper_Transaction class
+ *
+ * Handles the PagHiper transaction logic for WooCommerce orders.
+ *
+ * @package PagHiper for WooCommerce
+ */
+
+// For the WP team: var_export() is used only for logging purposes, if the user has debug enabled on plugin settings.
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -8,14 +17,16 @@ use PagHiper\PagHiper;
 class WC_PagHiper_Transaction {
 
 	private $order;
+	private $order_status;
 	private $order_id;
 	private $order_data;
 	private $gateway_id;
 	private $gateway_name;
 	private $gateway_settings;
+	private $log;
 	private $invalid_reason;
 	private $past_due_days;
-	private $log;
+	private $base_url;
 	private $timezone;
 
 	public function __construct($order_id) {
@@ -67,50 +78,66 @@ class WC_PagHiper_Transaction {
 		$different_due_date = FALSE;
 
 		// Novo request caso o método de pagamento tenha mudado
-		if( isset($this->order_data['transaction_type']) && ($this->order_data['transaction_type'] == 'pix' && $this->gateway_id !== 'paghiper_pix') ) {
+		if( array_key_exists('transaction_type', $this->order_data) && ($this->gateway_id !== $this->order->get_payment_method()) ) {
 
 			$new_request = TRUE;
 
 			if ( $this->log ) {
-				wc_paghiper_add_log( $this->log, sprintf( 'Pedido #%s: Método de pagamento é PIX mas a transação gerada não é.', $this->order_id ) );
+				wc_paghiper_add_log( 
+					$this->log, 
+					sprintf( 
+						'Pedido #%s: Método de pagamento é %s mas a transação gerada não é.', 
+						$this->order_id, 
+						(($this->gateway->id == 'paghiper_pix') ? __('PIX', 'woo-boleto-paghiper') : __('boleto', 'woo-boleto-paghiper')), 
+					)
+				);
 			}
 		}
 
 		// Define data de vencimento, caso exista
-		if(empty($this->order_data['order_transaction_due_date']) || empty($this->order_data['current_transaction_due_date'])) {
+		if( !array_key_exists('current_transaction_due_date', $this->order_data) ||  !array_key_exists('order_transaction_due_date', $this->order_data)) {
 
 			$new_request = TRUE;
 
-			if ( $this->log ) {
-				if( empty( $this->order->get_meta( 'wc_paghiper_data' ) ) ) {
+			if( is_array( $this->order->get_meta( 'wc_paghiper_data' ) ) &&
+							!array_key_exists('current_transaction_due_date', $this->order_data) ) {
+
+				$this->invalid_reason = 'nonexistent_transaction';
+
+				if ( $this->log ) {
 					wc_paghiper_add_log( $this->log, sprintf( 'Pedido #%s: Gerando transação para o pedido pela primeira vez.', $this->order_id ) );
-				} else {
-					wc_paghiper_add_log( $this->log, sprintf( 'Pedido #%s: Data de vencimento não presente no banco.', $this->order_id ) );
+				}
+			} else {	
+				$this->invalid_reason = 'nonexistent_order_data';
+				if ( $this->log ) {
+					wc_paghiper_add_log( $this->log, sprintf( 'Pedido #%s: Data de vencimento não presente no banco.', $this->order_id ) );			
 				}
 			}
 
 		} else {
-
-			$original_due_date = DateTime::createFromFormat('Y-m-d', $this->order_data['order_transaction_due_date'], $this->timezone);
-			$current_billet_due_date = DateTime::createFromFormat('Y-m-d', $this->order_data['current_transaction_due_date'], $this->timezone);
-
+			
+			// Checamos se o total do pedido bate com o total da transação Paghiper
 			$different_total = ( $this->order->get_total() == $this->order_data['value_cents'] ? NULL : TRUE );
+
+			// Checamos se a data de vencimento é válida
+			$original_due_date = DateTime::createFromFormat('Y-m-d', $this->order_data['order_transaction_due_date'], $this->timezone);
+			$current_transaction_due_date = DateTime::createFromFormat('Y-m-d', $this->order_data['current_transaction_due_date'], $this->timezone);
 			$different_due_date = ( $this->order_data['order_transaction_due_date'] == $this->order_data['current_transaction_due_date'] ? NULL : TRUE );
 
+			// Armazenamos a quantidade de dias passados do vencimento para uso interno
 			$today_date = new DateTime;
 			$today_date->setTimezone($this->timezone);
-
-			$this->past_due_days = ($original_due_date && $current_billet_due_date) ? (int) $today_date->diff($original_due_date)->format("%r%a") : NULL ;
+			$this->past_due_days = ($original_due_date && $current_transaction_due_date) ? (int) $today_date->diff($original_due_date)->format("%r%a") : NULL ;
 
 			if($different_due_date) {
 
 				// Check if date is different
-				$due_date_weekday = $current_billet_due_date->format('N');
+				$due_date_weekday = $current_transaction_due_date->format('N');
 
-				if ($current_billet_due_date->format('N') == 1 && $original_due_date->format('N') > 5) {
+				if ($current_transaction_due_date->format('N') == 1 && $original_due_date->format('N') > 5) {
 					
 					$paghiper_data = $this->order->get_meta( 'wc_paghiper_data' ) ;
-					$paghiper_data['order_transaction_due_date'] = $current_billet_due_date->format( 'Y-m-d' );
+					$paghiper_data['order_transaction_due_date'] = $current_transaction_due_date->format( 'Y-m-d' );
 
 					$this->order->update_meta_data( 'wc_paghiper_data', $paghiper_data );
 					$this->order->save();
@@ -119,7 +146,8 @@ class WC_PagHiper_Transaction {
 						update_meta_cache( 'shop_order', $this->order_id );
 
 					$this->order_data = $paghiper_data;
-					$this->order->add_order_note( sprintf( __( 'Data de vencimento ajustada para %s', 'woo_paghiper' ), $current_billet_due_date->format('d/m/Y') ) );
+					/* translators: %s: Mewly defined transaction due date. Used in order notes */
+					$this->order->add_order_note( sprintf( __( 'Data de vencimento ajustada para %s', 'woo-boleto-paghiper' ), $current_transaction_due_date->format('d/m/Y') ) );
 
 					$log_message = 'Pedido #%s: Data de vencimento do boleto não bate com a informada no pedido. Cheque a opção "Vencimento em finais de semana" no <a href="https://www.paghiper.com/painel/prazo-vencimento-boleto/" target="_blank">Painel da PagHiper</a>.';
 					wc_paghiper_add_log( $this->log, sprintf( $log_message, $this->order_id ) );
@@ -128,7 +156,7 @@ class WC_PagHiper_Transaction {
 					$error = __( '<strong>Boleto PagHiper</strong>: 
 					A data de vencimento do boleto foi configurada para um final de semana mas o boleto foi emitido para segunda-feira. 
 					Cheque a opção "Vencimento em finais de semana" no <a href="https://www.paghiper.com/painel/prazo-vencimento-boleto/" target="_blank">Painel da PagHiper</a> ou 
-					ative nas configurações do plugin a correção de datas para que o vencimento não caia em finais de semana', 'woo_paghiper' );
+					ative nas configurações do plugin a correção de datas para que o vencimento não caia em finais de semana', 'woo-boleto-paghiper' );
 					set_transient("woo_paghiper_due_date_order_errors_{$this->order_id}", $error, 0);
 
 					$different_due_date = NULL;
@@ -171,14 +199,14 @@ class WC_PagHiper_Transaction {
 	}
 
 	public function determine_due_date() {
-		$order_due_date 	= $this->order_data['order_transaction_due_date'];
+		$order_due_date 		= $this->order_data['order_transaction_due_date'];
 		$transaction_days_due	= (!empty($this->gateway_settings['days_due_date'])) ? $this->gateway_settings['days_due_date'] : 5;
 
 		$today = new DateTime;
 		$today->setTimezone($this->timezone);
 		$today_date = DateTime::createFromFormat('Y-m-d', $today->format('Y-m-d'), $this->timezone);
 
-		// TODO: Implement better logic here
+		// Se a data de vencimento já foi definida, usamos ela
 		if(!empty($order_due_date)) {
 
 			// Calcular dias de diferença entre a data de vencimento e a data atual
@@ -187,6 +215,7 @@ class WC_PagHiper_Transaction {
 
 			$transaction_due_date = $original_due_date;
 
+		// Se a data de vencimento não foi definida, usamos a data atual + dias de vencimento
 		} else {
 
 			$order_data = $this->order->get_meta( 'wc_paghiper_data' ) ;
@@ -194,10 +223,12 @@ class WC_PagHiper_Transaction {
 
 			// Calcular dias entre a data do pedido e os dias para vencimento na configuração
 			$transaction_due_date = $today_date;
-			$transaction_due_date->modify( "+{$billet_days_due} days" );
+			$transaction_due_date->modify( "+{$transaction_days_due} days" );
 
-			$transaction_due_days = (int) $billet_due_date->format('%a');
+			// Armazenamos a quantidade de dias a partir do dia atual, para o vencimento da transação
+			$transaction_due_days = (int) $transaction_due_date->format('%a');
 
+			// Guardamos o valor da data de vencimento no pedido
 			$order_data['order_transaction_due_date'] = $transaction_due_date->format( 'Y-m-d' );		
 			$this->order_data = $order_data;
 
@@ -210,9 +241,11 @@ class WC_PagHiper_Transaction {
 
 		}
 
+		// Checamos se a data de vencimento cai em um final de semana
 		$maybe_add_workdays = ($this->gateway_id == 'paghiper_pix') ? null : $this->gateway_settings['skip_non_workdays'];
 		$transaction_due_days = wc_paghiper_add_workdays($transaction_due_date, $this->order, 'days', $maybe_add_workdays);
 
+		// Retorna a quantidade de dias para vencimento da transação a ser gerada
 		return $transaction_due_days;
 	}
 
@@ -422,7 +455,8 @@ class WC_PagHiper_Transaction {
 			$PagHiperAPI 	= new PagHiper($api_key, $token);
 			$response 		= $PagHiperAPI->transaction()->create($transaction_data);
 
-			$billet_data = $this->order->get_meta( 'wc_paghiper_data' );
+			// Get meta data from the order again, no matter what.
+			$this->order_data = $this->order->get_meta( 'wc_paghiper_data' );
 
 			$transaction_base_data = [
 				'transaction_id'				=> $response['transaction_id'],
@@ -472,15 +506,24 @@ class WC_PagHiper_Transaction {
 
 			}
 
-			$current_billet = array_merge($transaction_base_data, $transaction);
+			$current_transaction = array_merge($transaction_base_data, $transaction);
 
 			// Define a due date for storing on the order, for future reference
 			if(!array_key_exists('order_transaction_due_date', $this->order_data)) {
-				$current_billet['order_transaction_due_date'] = $response['due_date'];
+				$current_transaction['order_transaction_due_date'] = $response['due_date'];
 			}
 
 			$order_data = (is_array($this->order_data)) ? $this->order_data : array();
-			$data = array_merge($this->order_data, $current_billet);
+			$data = array_merge($this->order_data, $current_transaction);
+
+			// Update order status if needed
+			$order_status = (strpos($this->order->get_status(), 'wc-') === false) ? 'wc-'.$this->order->get_status() : $this->order->get_status();
+			$waiting_status = (!empty($this->gateway_settings['set_status_when_waiting'])) ? $this->gateway_settings['set_status_when_waiting'] : 'on-hold';
+
+			if(strpos($order_status, 'wc-pending') !== false) { ## adaptacao para versões do php 7.4
+				/* translators: %s: Transaction type. For use in order notes */
+				$this->order->update_status( $waiting_status, sprintf(__( 'PagHiper: %s gerado e enviado por e-mail.', 'woo-boleto-paghiper' ), (($this->gateway_id == 'paghiper_pix') ? __('PIX', 'woo-boleto-paghiper') : __('Boleto', 'woo-boleto-paghiper')) ) );
+			}
 
 			$this->order->update_meta_data( 'wc_paghiper_data', $data );
 			$this->order->save();
@@ -553,14 +596,8 @@ class WC_PagHiper_Transaction {
 	public function print_transaction_html() {
 
 		// Checamos se o pedido não é um PIX
-		if($this->order_data['transaction_type'] == 'pix') {
-
-			$ico = 'billet-cancelled.png';
-			$title = 'Este pedido não foi feito com boleto!';
-			$message = 'A forma de pagamento deste pedido é PIX. Cheque seu e-mail ou sua área de pedidos para informações sobre como pagar.';
-			echo print_screen($ico, $title, $message);
-
-		}
+		if($this->order_data['transaction_type'] == 'pix')
+			return false;
 		
 		// Temos um boleto ja emitido com data de vencimento válida, só pegamos uma cópia
 		$response = wp_remote_get($this->order_data['url_slip']);
@@ -569,6 +606,9 @@ class WC_PagHiper_Transaction {
 			$headers = $response['headers']; // array of http header lines
 			$body    = $response['body']; // use the content
 
+			// For the WP team: This will be printed in a separate page, without headers or footers.
+			// This code just can't be escaped because it's a complete webpage in itself. It comes directly from the Paghiper API.
+			// Should this ever get compromised, it can't interact with the rest of the site, so it won't be able to do anything malicious
 			echo $body;
 
 			if ( $this->log ) {
@@ -682,7 +722,7 @@ class WC_PagHiper_Transaction {
 
 						if( !$conf || (is_array($conf) && in_array('instructions', $conf)) ) {
 							
-							$html .= __('Pagar com PIX copia e cola - ');
+							$html .= __('Pagar com PIX copia e cola - ', 'woo-boleto-paghiper');
 						}
 						
 						$html .= '<button type="button">Clique para copiar</button>';
@@ -728,6 +768,9 @@ class WC_PagHiper_Transaction {
 		$this->create_transaction();
 		$barcode = $this->print_transaction_barcode(($print || (!$print && $is_html) ? true : false), $is_html, $conf);
 
+		// For the WP Team: This is a function that prints the barcode to the screen
+		// All the code is generated, escaped and treated by the plugin previous to this stage, so it can't be escaped again
+		// This code is not a security issue, as it is just a barcode and the user can't interact with it
 		if($print) 
 			echo $barcode;
 
@@ -736,7 +779,18 @@ class WC_PagHiper_Transaction {
 	}
 
 	public function _get_digitable_line() {
-		return ($this->gateway_id == 'paghiper_pix') ? $this->order_data['emv'] : $this->order_data['digitable_line'];
+
+		if($this->gateway_id == 'paghiper_pix') {
+			if(array_key_exists('emv', $this->order_data)) {
+				return $this->order_data['emv'];
+			}
+		} else {
+			if(array_key_exists('digitable_line', $this->order_data)) {
+				return $this->order_data['digitable_line'];
+			}
+		}
+
+		return false;
 	}
 
 	public function _get_barcode() {

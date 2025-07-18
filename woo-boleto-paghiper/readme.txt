@@ -1,10 +1,10 @@
-=== WooCommerce Boleto e PIX PagHiper ===
+=== PagHiper Boleto e PIX para WooCommerce ===
 Contributors: henriqueccruz
 Donate link: https://www.paghiper.com/
 Tags: pix, boleto, paghiper, pagamento, gateway
 Requires at least: 6.0
-Tested up to: 6.8.1
-Stable tag: trunk
+Tested up to: 6.8
+Stable tag: 2.5
 Requires PHP: 7.2
 License: GPLv3 or later
 License URI: http://www.gnu.org/licenses/gpl-3.0.html
@@ -19,11 +19,11 @@ O plug-in anexa o boleto, mostra código de barras e linha digitável nos e-mail
 
 Fácil, prático e rápido!
 
-* **Versão mais Recente:** 2.4.3
+* **Versão mais Recente:** 2.5
 * **Requer WooCommerce** versão mínima 4.0.0
 * **Requer Wordpress** preferencialmente atualizado
 * **Requisitos:** PHP >= 7.2, cURL ativado.
-* **Compatibilidade:** Wordpress 6.8.1, Woocommerce 9.8.5, PHP 8.3.0.
+* **Compatibilidade:** Wordpress 6.8.1, Woocommerce 10.0.2, PHP 8.4.10.
 
 
 # Como Instalar
@@ -50,19 +50,15 @@ Para dúvidas comerciais e/ou sobre o funcionamento do serviço, visite a nossa 
 
 == Changelog ==
 
-## 2.4.3
+## 2.5
 
-- Melhoria: Otimizações e refatoração de código em diversas rotas e jornadas
-- Melhoria: Mais informações de log
-- Fix: Mudanças de status duplicadas
-- Fix: Remoção de diversos warnings
-- Fix: Metabox não aparece para pedidos com HPOS ativado em algumas circunstâncias
-- FIx: Erros ocasionais nas áreas de admin, a depender da combinação de plug-ins utilizada
-
+- Mudança sutil no nome do plugin por questões de compliance
+- Erro fatal no admin dos pedidos, a depender de algumas condições
+- Múltiplos bugfixes e melhorias
 
 # Licença
 
-Copyright 2016-2020 Serviços Online BR.
+Copyright 2016-2025 Serviços Online BR.
 
 Licensed under the 3-Clause BSD License (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at
 

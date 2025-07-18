@@ -1,0 +1,165 @@
+.paghiper-pix-code {
+
+	cursor: pointer;
+
+	p {
+
+		display: block;
+		margin-bottom: 0.5em;
+		cursor: pointer;
+
+		button {
+			border: unset;
+			display: inline-block;
+			cursor: pointer;
+			padding: .25em .4em;
+			font-size: 75%;
+			font-weight: 700;
+			line-height: 1;
+			text-align: center;
+			white-space: nowrap;
+			vertical-align: baseline;
+			border-radius: .25rem;
+			transition: color .15s ease-in-out,background-color .15s ease-in-out,border-color .15s ease-in-out,box-shadow .15s ease-in-out;
+	
+			color: #fff;
+			background-color: #17a2b8;
+			text-transform: uppercase;
+		}
+
+	}
+
+	.textarea-container {
+		background-color: #e2e3e5;
+		border: 1px solid #dee2e6 !important;
+		padding: .75rem 1.25rem;
+		margin-bottom: 1rem;
+		border-radius: .25rem;
+		cursor: pointer;
+
+		textarea {
+			color: #333333;
+			width: 100%;
+			background: none;
+			border: none;
+			overflow: hidden;
+			pointer-events: none;
+			line-break: anywhere;
+		}
+	}
+}
+
+.pix-container {
+	display: flex;
+	flex-direction: row;
+	margin: 2em 0 4em;
+
+	.qr-code {
+		flex-grow: 1;
+	}
+
+	.instructions {
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+	}
+}
+
+.woo_paghiper_digitable_line {
+
+	text-align: center;
+	
+	ul {
+		text-align: left;
+		list-style-type: none !important;
+		padding: 2em 0 !important;
+		margin: 0px !important;
+		max-width: 400px;
+
+		li {
+			margin-bottom: 1.5em !important;
+			padding-left: 65px;
+			position: relative;
+			line-height: 1.5em;
+			min-height: 50px;
+
+			display: flex;
+			flex-direction: column;
+			justify-content: center;
+
+			&:before {
+				content: '';
+				position: absolute;
+				display: block;
+				width: 50px;
+				height: 50px;
+				border-radius: 40px;
+				left: 0px;
+				top: 50%;
+				transform: translateY(-50%);
+				background-size: contain;
+				box-shadow: 0 2px 4px rgba(0, 0, 0, .15);
+			}
+
+			&:first-child:before { background-image: url('../images/ico_1-app.png'); }
+			&:nth-child(2):before { background-image: url('../images/ico_2-qr.png'); }
+			&:last-child:before { background-image: url('../images/ico_3-ok.png'); }
+		}
+	}
+}
+
+.woo_paghiper_digitable_line + .woocommerce-message {
+	@media only screen and (max-width: 600px) {
+		display: flex;
+		flex-direction: column;
+		text-align: center;
+
+		a.button-primary {
+			order: 2;
+			margin-top: 20px;
+		}
+	}
+}
+
+.payment_method_paghiper_billet,
+.payment_method_paghiper_pix {
+	img {
+		max-height: 40px;
+	}
+}
+
+.paghiper-hidden {
+	display: none !important;
+}
+
+.wc-block-components-form div.paghiper-taxid-fieldset {
+
+	label {
+		line-height: 1;
+	}
+
+	input[type=text] {
+
+		transition: background 0.15s ease, border 0.15s ease, box-shadow 0.15s ease, color 0.15s ease;
+		border: 1px solid #e6e6e6;
+		box-shadow: 0px 1px 1px rgba(0, 0, 0, 0.03), 0px 3px 6px rgba(0, 0, 0, 0.02);
+
+		&:focus {
+			outline: 0px;
+			border-color: hsla(210, 96%, 45%, 50%);
+			box-shadow: 0px 1px 1px rgba(0, 0, 0, 0.03), 
+				0px 3px 6px rgba(0, 0, 0, 0.02), 
+				0 0 0 3px hsla(210, 96%, 45%, 25%), 
+				0 1px 1px 0 rgba(0, 0, 0, 0.08);
+		}
+		&.invalid {
+			border-color: #df1b41;
+			box-shadow: 0px 1px 1px rgba(0, 0, 0, 0.03), 0px 3px 6px rgba(0, 0, 0, 0.02), 0 0 0 1px #df1b41;
+		}
+	}
+
+	.wc-block-components-validation-error {
+		font-size: 0.93rem;
+		color: #df1b41;
+	}
+}
