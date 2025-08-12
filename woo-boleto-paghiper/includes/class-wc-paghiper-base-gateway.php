@@ -525,6 +525,9 @@ class WC_Paghiper_Base_Gateway {
 	 */
 	public function process_payment( $order_id, $is_frontend = true ) {
 
+		// Avoid processing transactions during this time.
+		remove_action( 'woocommerce_email_after_order_table', array( $this, 'email_instructions' ), 10, 2 );
+
 		$order = wc_get_order( $order_id );
 		$taxid_keys = ["_{$this->gateway->id}_cpf_cnpj", "_{$this->gateway->id}_payer_name"];
 
@@ -568,6 +571,23 @@ class WC_Paghiper_Base_Gateway {
 			/* translators: %s: Transaction type. May be PIX or billet, for an example. */
 			$order->update_status( $waiting_status, sprintf(__( 'PagHiper: %s gerado e enviado por e-mail.', 'woo-boleto-paghiper' ), (($this->gateway->id == 'paghiper_pix') ? __('PIX', 'woo-boleto-paghiper') : __('Boleto', 'woo-boleto-paghiper')) ) );
 
+
+			if ( $this->log ) {
+				wc_paghiper_add_log( 
+					$this->log, 
+					sprintf( 'Pedido #%s: Redirecionando usuário para a tela com os dados para pagamento.', $order_id) 
+				);
+			}
+
+			// Reattach email instructions to the order e-mails from now on
+			add_action( 'woocommerce_email_after_order_table', array( $this, 'email_instructions' ), 10, 2 );
+
+			// Return thankyou redirect.
+			return [
+				'result'   => 'success',
+				'redirect' => $url
+			];
+
 		} else {
 
 			// Prints a notice, case order total surpasses our normal commercial limits
@@ -587,21 +607,20 @@ class WC_Paghiper_Base_Gateway {
 					) 
 				);
 			}
+
 			wc_add_notice(
 				sprintf( 
 					/* translators: %s: Transaction type. May be PIX or billet, for an example. */
 					__('Não foi possível gerar o seu %s.', 'woo-boleto-paghiper'), 
 					(($this->gateway->id == 'paghiper_pix') ? __('PIX', 'woo-boleto-paghiper') : __('boleto', 'woo-boleto-paghiper')) 
 			), 'error' );
-			return;
+
+			return [
+				'result'   => 'fail',
+				'redirect' => '',
+			];
 
 		}
-
-		// Return thankyou redirect.
-		return array(
-			'result'   => 'success',
-			'redirect' => $url
-		);
 	}
 
 	/**
@@ -631,11 +650,11 @@ class WC_Paghiper_Base_Gateway {
 		if ( $this->log ) {
 			wc_paghiper_add_log( 
 				$this->log, 
-				sprintf( 'Pedido #%s: Dados iniciais para o %s preparados. Detalhes: %s', 
+				sprintf( 'Pedido #%s: Dados iniciais para o %s preparados.', 
 					$order->get_id(), 
 					(($this->gateway->id == 'paghiper_pix') ? 'PIX' : 'boleto'), 
-					var_export($data, true) 
-				) 
+				),
+				['transaction_data' => $data]
 			);
 		}
 
