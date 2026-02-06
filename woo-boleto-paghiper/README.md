@@ -39,6 +39,10 @@ Para dúvidas comerciais e/ou sobre o funcionamento do serviço, visite a nossa 
 
 # Changelog
 
+## 2.5.3
+
+- Bugfix: ArgumentCountError woocommerce-paghiper:399
+
 ## 2.5.2
 
 - Bufgix: Multiplas notificações de novo pedido enviadas
